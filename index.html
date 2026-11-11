@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>晴雨录 · 天气与空气质量查询</title>
+<meta name="description" content="晴雨录:任意城市、任意时间段的天气温度与空气质量(AQI、PM2.5、PM10 等)查询,城市详情与多城市对比分开显示,可下载 JSON / CSV / SVG。数据来自 Open-Meteo 公开 API,纯静态网页,无需后端。">
+<meta name="theme-color" content="#ffffff">
+<script>
+  /* 主题预设:在样式加载前应用,避免闪烁(默认浅色) */
+  (function () {
+    try {
+      if (localStorage.getItem('ws_theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    } catch (e) { /* 忽略 */ }
+  })();
+</script>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="64x64" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="logo-row">
+    <img src="favicon.svg" alt="晴雨录图标" width="46" height="46">
+    <div class="brand">
+      <h1>晴雨录 <span class="en">WEATHERLOG</span></h1>
+      <p>天气 · 空气质量 · 多城市对比 · JSON / CSV / SVG 下载</p>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="panel controls" id="controls">
+    <div class="ctrl-row">
+      <div class="ctrl-group search-group">
+        <div class="ctrl-label">🏙 城市检索</div>
+        <div class="searchbox">
+          <span class="search-ico" aria-hidden="true">🔍</span>
+          <input id="searchInput" type="text" placeholder="输入城市名:北京 / Shanghai / 東京 / New York…" autocomplete="off">
+          <div id="suggestions" class="suggestions hidden"></div>
+        </div>
+        <div class="preset-chips" id="presetChips" aria-label="常用城市"></div>
+      </div>
+      <div class="ctrl-divider" aria-hidden="true"></div>
+      <div class="ctrl-group date-group">
+        <div class="ctrl-label">📅 日期范围</div>
+        <div class="range-inputs">
+          <label>开始日期 <input type="date" id="dateStart"></label>
+          <span class="sep">→</span>
+          <label>结束日期 <input type="date" id="dateEnd"></label>
+        </div>
+        <div class="range-chips" id="rangeChips" aria-label="快捷时间段"></div>
+      </div>
+    </div>
+    <div class="ctrl-foot">
+      <div class="view-tabs" role="tablist" aria-label="视图切换">
+        <button class="tab active" data-view="cities" role="tab" aria-selected="true">📋 城市详情</button>
+        <button class="tab" data-view="compare" role="tab" aria-selected="false">📊 城市对比</button>
+      </div>
+      <div class="range-note hidden" id="rangeNote"></div>
+      <button id="refreshAll" class="btn primary" title="按当前城市与日期重新加载全部城市">↻ 刷新全部</button>
+    </div>
+  </section>
+
+  <nav class="city-index" id="cityIndex" aria-label="城市快速定位">
+    <span class="idx-label">快速定位</span>
+    <div class="idx-list" id="idxList"></div>
+  </nav>
+
+  <section id="cards" class="cards"></section>
+
+  <section id="compareSection" class="panel compare hidden">
+    <div class="compare-head">
+      <h2>📊 城市对比</h2>
+      <div class="compare-chips" id="compareChips"></div>
+    </div>
+    <div class="compare-charts" id="compareCharts"></div>
+    <table class="compare-table hidden" id="compareTable"></table>
+    <div class="downloads">
+      <button id="dlCompareCSV" class="btn">⬇ 下载对比数据 CSV</button>
+      <button id="dlCompareSVG" class="btn">⬇ 下载对比图表 SVG</button>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <p>晴雨录 · 数据来源:<a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> 公开 API(天气再分析 ERA5 自 1940 年、预报 16 天;空气质量 CAMS,预报约 5 天)。中国 AQI 依据 HJ 633-2012 由污染物浓度估算。</p>
+  <p>本页面为纯静态网页,所有请求由你的浏览器直接发起,无需任何后端服务器。数据许可 <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>,使用请注明 Open-Meteo。</p>
+</footer>
+
+<button id="themeToggle" class="theme-toggle" type="button" title="切换到深色主题" aria-label="切换深浅主题">🌙</button>
+<button id="backTop" class="back-top" type="button" title="回到顶部" aria-label="回到顶部">↑</button>
+
+<div id="svgModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="选择要下载的 SVG 图表">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3 id="svgModalTitle">下载 SVG 图表</h3>
+      <button class="modal-close" id="svgModalClose" type="button" aria-label="关闭">✕</button>
+    </div>
+    <p class="modal-sub">可以选择下载单张图表,或把全部图表合并成一张 SVG:</p>
+    <div class="modal-options" id="svgModalOptions"></div>
+  </div>
+</div>
+
+<noscript><div style="text-align:center;padding:20px">本页面需要启用 JavaScript 才能查询天气数据。</div></noscript>
+<div id="toast" class="toast hidden"></div>
+<script src="charts.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
