@@ -845,13 +845,17 @@ function buildChart(opts) {
   const svg = svgEl('svg', { viewBox: `0 0 ${width} ${height}`, class: 'chart-svg', 'data-w': width, 'data-h': height, role: 'img', 'font-family': 'Inter, "SF Pro Text", "PingFang SC", "Segoe UI", "Microsoft YaHei", sans-serif' });
   svg.appendChild(svgEl('rect', { x: 0, y: 0, width: width, height: height, class: 'chart-bg', fill: P.bg }));
 
-  // ---- AQI 等级色带 ----
+  // ---- AQI 等级色带(先与 y 轴范围求交集,超出可视范围的色带不绘制,避免负高度) ----
   for (const b of bands) {
-    const yTop = Y(Math.max(b.from, lo));
-    const yBot = Y(Math.min(b.to, hi));
-    if (yBot - yTop < 0.5) continue;
-    svg.appendChild(svgEl('rect', { x: ML, y: yBot, width: plotW, height: yTop - yBot, fill: b.color, opacity: 0.10 }));
-    svg.appendChild(svgEl('text', { x: width - MR - 4, y: yBot + 11, 'text-anchor': 'end', 'font-size': 11, fill: b.color, opacity: 0.8 }, [b.label]));
+    const fromV = Math.max(b.from, lo);
+    const toV = Math.min(b.to, hi);
+    if (toV <= fromV) continue; // 色带完全在可视范围之外
+    const yTop = Y(toV);        // 上边缘(数值更大 → y 更小)
+    const yBot = Y(fromV);      // 下边缘
+    const h = yBot - yTop;
+    if (h < 0.5) continue;
+    svg.appendChild(svgEl('rect', { x: ML, y: yTop, width: plotW, height: h, fill: b.color, opacity: 0.10 }));
+    svg.appendChild(svgEl('text', { x: width - MR - 4, y: yTop + 11, 'text-anchor': 'end', 'font-size': 11, fill: b.color, opacity: 0.8 }, [b.label]));
   }
 
   // ---- 网格 + y 刻度 ----

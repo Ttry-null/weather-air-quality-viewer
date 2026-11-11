@@ -333,11 +333,15 @@ def svg_chart(labels, series, width=960, height=300, y_label="", bands=None, tit
     out.append(f'<rect width="{width}" height="{height}" fill="#ffffff"/>')
     if bands:
         for b in bands:
-            y_top = Y(max(b["from"], lo))
-            y_bot = Y(min(b["to"], hi))
+            from_v = max(b["from"], lo)
+            to_v = min(b["to"], hi)
+            if to_v <= from_v:
+                continue  # 色带完全在可视范围之外
+            y_top = Y(to_v)   # 上边缘(数值更大 → y 更小)
+            y_bot = Y(from_v)  # 下边缘
             if y_bot - y_top >= 0.5:
-                out.append(f'<rect x="{ml}" y="{y_bot:.1f}" width="{plot_w}" height="{y_top - y_bot:.1f}" fill="{b["color"]}" opacity="0.10"/>')
-                out.append(f'<text x="{width - mr - 4}" y="{y_bot + 11:.1f}" text-anchor="end" font-size="10" fill="{b["color"]}" opacity="0.8">{esc(b["label"])}</text>')
+                out.append(f'<rect x="{ml}" y="{y_top:.1f}" width="{plot_w}" height="{y_bot - y_top:.1f}" fill="{b["color"]}" opacity="0.10"/>')
+                out.append(f'<text x="{width - mr - 4}" y="{y_top + 11:.1f}" text-anchor="end" font-size="10" fill="{b["color"]}" opacity="0.8">{esc(b["label"])}</text>')
     step = nice_step(hi - lo)
     v = math.ceil(lo / step - 1e-9) * step
     while v <= hi + 1e-9:
